@@ -146,7 +146,10 @@ class Virus extends Scene
 
     updateSpritePos(x,y)
     {
-        this.sprite.play("swim", true);
+        if (this.sprite.power == null)
+        {
+            this.sprite.play("swim", true);
+        }
         this.sprite.setPosition(x,y);
         resetWithinBounds(this.sprite);
     }
@@ -246,8 +249,19 @@ class Virus extends Scene
         {
             //should add a tint here for cool effect
             console.log("Wiping everything out");
+            this.sprite.power = selectedPower;
             this.cells.forEach((cell) => {cell.destroy();});
             this.cells = [];
+        }
+        if (selectedPower == "balloon")
+        {
+            console.log("fun :)");
+            this.sprite.power = selectedPower;
+            this.sprite.play("float", true).once("animationcomplete", () => 
+            {
+                this.sprite.play("balloon");
+            });
+            this.sprite.body.enable = false;
         }
     }
 
@@ -306,6 +320,7 @@ class Virus extends Scene
                 this.sprite.power = null;
                 this.shootTimer = SHOOTTIME;
                 this.currentPowerUpTime = 0;
+                this.sprite.body.enable = true;
             }
         }
     }
