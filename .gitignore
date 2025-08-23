@@ -1,8 +1,10 @@
 node_modules/
 assets/
 music/
+font/
 *.txt
 *.png
 *.jpg
 *.jpeg
 *.zip
+*.ttf

@@ -2,6 +2,9 @@ import {Scene, Game, AUTO, Physics, Input} from "phaser";
 
 const WINSIZE = [900,675];
 const SHOOTTIME = 350;
+const POWERUPCHANCE = [15,1];
+const MAXSPAWNDIFFICULTY = 500;
+const MAXHPDIFFICULTY = 5;
 
 function resetWithinBounds(gameObject)
 {
@@ -52,10 +55,15 @@ class Virus extends Scene
 
     create ()
     {
+        let file = 'minogram_6x10';
+        this.load.bitmapFont('pixelfont', 'fonts/' + file + '.png', 'fonts/' + file + '.xml');
         this.gameState = "running";
         this.cells = [];
         this.bullets = [];
         this.powerups = [];
+        this.hpDifficulty = 2;
+        this.difficultyTimer = 10000;
+        this.currentDifficultyTime = 0;
         this.powerUpTimer = 15000;
         this.currentPowerUpTime = 0;
         this.shootTimer = SHOOTTIME;
@@ -83,13 +91,28 @@ class Virus extends Scene
     {
         const [x,y] = getRandomCellPosition();
         const cell = this.physics.add.sprite(x, y, "cell");
-        cell.hp = 2;
+        cell.hp = this.hpDifficulty;
         cell.body.allowGravity = false;
         cell.body.setSize(50, 50);
        // this.physics.add.collider()
         this.physics.add.collider(this.sprite, cell, () => {this.gameState = "gameover"});
         cell.play({ key: 'swim2', repeat: -1 });  //animation tag has to be unique due to a Phaser bug
         this.cells.push(cell);
+    }
+
+    updateDifficulty(dt)
+    {
+        if (this.spawnCellTimer > MAXSPAWNDIFFICULTY)
+        {
+            this.currentDifficultyTime += dt;
+            if (this.currentDifficultyTime > this.difficultyTimer)
+            {
+                console.log("Prepare to die", this.spawnCellTimer);
+                this.currentDifficultyTime = 0;
+                this.spawnCellTimer -= 100;
+                this.hpDifficulty += 1;
+            }
+        }
     }
 
     updateCellPosition(cell)
@@ -236,6 +259,7 @@ class Virus extends Scene
 
     doPower(powerup)
     {
+        console.log("timer", this.spawnCellTimer);
         powerup.destroy();
         const powers = ["attack-speed","balloon","clear-all"];
         const selectedPower = powers[Math.floor(Math.random() * powers.length)];
@@ -267,9 +291,9 @@ class Virus extends Scene
 
     dropPowerUp(x,y)
     {
-        const chance = 2; // 1 in 15 to drop a powerup
+        const chance = POWERUPCHANCE[0]; // 1 in 15 to drop a powerup
         const rng = (Math.floor(Math.random() * chance));
-        const addPowerUp = rng == 1;
+        const addPowerUp = rng == POWERUPCHANCE[1];
         if (addPowerUp)
         {
             const powerUp = this.physics.add.image(x,y, "powerup");
@@ -331,6 +355,7 @@ class Virus extends Scene
         this.killBullets(dt);
         this.updateCells(dt);
         this.killCells();
+        this.updateDifficulty(dt);
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
