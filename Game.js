@@ -43,6 +43,7 @@ class Virus extends Scene
     preload ()
     {
         this.load.image("bullet", "bullet.png");
+        this.load.image("powerup", "powerup.png");
         this.load.image("background", "virus-background.png");
         this.load.aseprite('virus', 'virus.png', 'virus.json');
         this.load.aseprite('cell', 'cell.png', 'cell.json');
@@ -53,6 +54,7 @@ class Virus extends Scene
         this.gameState = "running";
         this.cells = [];
         this.bullets = [];
+        this.powerups = [];
         this.shootTimer = 350;
         this.currentShootTime = 0;
         this.bulletKillTimer = 700;
@@ -77,6 +79,7 @@ class Virus extends Scene
     {
         const [x,y] = getRandomCellPosition();
         const cell = this.physics.add.sprite(x, y, "cell");
+        cell.hp = 2;
         cell.body.allowGravity = false;
         cell.body.setSize(50, 50);
        // this.physics.add.collider()
@@ -180,6 +183,14 @@ class Virus extends Scene
         }
     }
 
+    hitCell(cell,bullet)
+    {
+        //console.log("Cell hp", cell.hp);
+        cell.hp -= 1;
+        cell.setTint("0xe1e0e6");
+        bullet.destroy();
+        bullet = null;
+    }
 
     shootBullet(dt)
     {
@@ -192,6 +203,10 @@ class Virus extends Scene
         const [x,y] = [this.sprite.x, this.sprite.y];
         const bullet = this.physics.add.image(x,y, "bullet");
         bullet.body.setAllowGravity(false);
+        this.cells.forEach((cell) =>
+        {
+            this.physics.add.overlap(cell, bullet, () => {this.hitCell(cell,bullet);});
+        });
         if (this.sprite.direction == "up")
         {
             bullet.body.setAccelerationY(-1500);
@@ -212,6 +227,40 @@ class Virus extends Scene
         this.bullets.push(bullet);
     }
 
+    doPower()
+    {
+        console.log("TBD");
+    }
+
+    dropPowerUp(x,y)
+    {
+        const chance = 15; // 1 in 15 to drop a powerup
+        const rng = (Math.floor(Math.random() * chance));
+        const addPowerUp = rng == 1;
+        if (addPowerUp)
+        {
+            const powerUp = this.physics.add.image(x,y, "powerup");
+            powerUp.body.setAllowGravity(false);
+            this.physics.add.overlap(powerUp, this.sprite, () => {this.doPower();});
+            this.powerups.push(powerUp);
+        }
+    }
+
+    killCells()
+    {
+        this.cells.forEach((cell) => 
+        {
+            if (cell.hp < 1)
+            {
+                const [x,y] = [cell.x, cell.y];
+                this.dropPowerUp(x,y);
+                cell.destroy();
+            }
+        });
+        const newArray = this.cells.filter((cell) => {return cell.hp > 0;})
+        this.cells = newArray;
+    }
+
     killBullets(dt)
     {
         this.bullets.forEach((bullet) => 
@@ -221,14 +270,16 @@ class Virus extends Scene
             {
                 bullet.destroy();
             }
-            bullet = null;
         });
+        const newArray = this.bullets.filter((bullet) => {return bullet.lifeTimer < this.bulletKillTimer});
+        this.bullets = newArray;
     }
 
     updateGameObjects(dt)
     {
         this.killBullets(dt);
         this.updateCells(dt);
+        this.killCells();
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
