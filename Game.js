@@ -51,13 +51,13 @@ class Virus extends Scene
         this.load.image("background", "virus-background.png");
         this.load.aseprite('virus', 'virus.png', 'virus.json');
         this.load.aseprite('cell', 'cell.png', 'cell.json');
+        this.load.audio("laser", "laser.mp3");
     }
 
     create ()
     {
-        let file = 'minogram_6x10';
-        this.load.bitmapFont('pixelfont', 'fonts/' + file + '.png', 'fonts/' + file + '.xml');
         this.gameState = "running";
+        this.kills = 0;
         this.cells = [];
         this.bullets = [];
         this.powerups = [];
@@ -254,6 +254,7 @@ class Virus extends Scene
             bullet.body.setAccelerationX(1500);
         }
         bullet.lifeTimer = 0;
+        this.sound.play("laser");
         this.bullets.push(bullet);
     }
 
@@ -274,6 +275,7 @@ class Virus extends Scene
             //should add a tint here for cool effect
             console.log("Wiping everything out");
             this.sprite.power = selectedPower;
+            this.kills += this.cells.length;
             this.cells.forEach((cell) => {cell.destroy();});
             this.cells = [];
         }
@@ -305,6 +307,7 @@ class Virus extends Scene
 
     killCells()
     {
+        let delta = this.cells.length;
         this.cells.forEach((cell) => 
         {
             if (cell.hp < 1)
@@ -315,6 +318,8 @@ class Virus extends Scene
             }
         });
         const newArray = this.cells.filter((cell) => {return cell.hp > 0;})
+        delta = delta - newArray.length;
+        this.kills += delta;
         this.cells = newArray;
     }
 
