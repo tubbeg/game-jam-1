@@ -42,6 +42,7 @@ class Virus extends Scene
         this.anims.createFromAseprite("virus");
         this.anims.createFromAseprite("cell");
         this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
+        this.sprite.body.setSize(70, 100, 0.5);
         this.sprite.body.allowGravity = false;
         this.sprite.play({ key: 'idle', repeat: -1 });
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
@@ -52,6 +53,9 @@ class Virus extends Scene
     {
         const cell = this.physics.add.sprite(WINSIZE[0]/3, WINSIZE[1]/2, "cell");
         cell.body.allowGravity = false;
+        cell.body.setSize(80, 80, 0.5);
+       // this.physics.add.collider()
+        this.physics.add.collider(this.sprite, cell, () => {console.log("Collision!")});
         cell.play({ key: 'swim2', repeat: -1 });  //animation tag has to be unique due to a Phaser bug
         this.cells.push(cell);
     }
