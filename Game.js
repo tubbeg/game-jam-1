@@ -8,6 +8,7 @@ class Virus extends Scene
     {
         this.load.image("background", "virus-background.png")
         this.load.aseprite('virus', 'virus.png', 'virus.json');
+        this.load.aseprite('cell', 'cell.png', 'cell.json');
     }
 
     create ()
@@ -15,14 +16,21 @@ class Virus extends Scene
         this.cursors = this.input.keyboard.createCursorKeys();
         this.add.image(WINSIZE[0]/2, WINSIZE[1]/2,"background");
         this.anims.createFromAseprite("virus");
+        this.anims.createFromAseprite("cell");
         this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
+        this.cell = this.physics.add.sprite(WINSIZE[0]/3, WINSIZE[1]/2, "cell");
         this.sprite.body.allowGravity = false;
-        this.sprite.play({ key: 'swim', repeat: -1 });
+        this.sprite.isSwimming = false;
+        this.cell.body.allowGravity = false;
+        //below is a bug in Phaser. Each animation tag has to be unique otherwise Phaser will mix them up
+        this.cell.play({ key: 'swim2', repeat: -1 }); 
+        this.sprite.play({ key: 'idle', repeat: -1 });
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
     }
 
     updateSpritePos(x,y)
     {
+        this.sprite.play("swim", true);
         const i = 40;
         this.sprite.setPosition(x,y);
         if (this.sprite.x > WINSIZE[0] + i)
@@ -45,7 +53,6 @@ class Virus extends Scene
 
     update (t,dt)
     {
-        //this.sprite.play({ key: 'idle', repeat: -1 });
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
