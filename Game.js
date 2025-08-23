@@ -42,7 +42,8 @@ class Virus extends Scene
 {
     preload ()
     {
-        this.load.image("background", "virus-background.png")
+        this.load.image("bullet", "bullet.png");
+        this.load.image("background", "virus-background.png");
         this.load.aseprite('virus', 'virus.png', 'virus.json');
         this.load.aseprite('cell', 'cell.png', 'cell.json');
     }
@@ -51,6 +52,10 @@ class Virus extends Scene
     {
         this.gameState = "running";
         this.cells = [];
+        this.bullets = [];
+        this.shootTimer = 350;
+        this.currentShootTime = 0;
+        this.bulletKillTimer = 700;
         this.spawnCellTimer = 1000;
         this.currentCellSpawnTime = 0;
         this.cellMoveTimer = 100;
@@ -63,6 +68,7 @@ class Virus extends Scene
         this.sprite.body.setSize(20, 50);
         this.sprite.body.allowGravity = false;
         this.sprite.play({ key: 'idle', repeat: -1 });
+        this.sprite.direction = "up";
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
         this.createCell();
     }
@@ -146,9 +152,14 @@ class Virus extends Scene
             {
                 cell.destroy();
             });
+            this.bullets.forEach((b) =>
+            {
+                b.destroy();
+            });
             this.sprite.destroy();
             this.sprite = null;
             this.cells = null;
+            this.bullets = null;
         }
     }
 
@@ -169,33 +180,83 @@ class Virus extends Scene
         }
     }
 
+
+    shootBullet(dt)
+    {
+        this.currentShootTime = dt + this.currentShootTime;
+        if (this.currentShootTime < this.shootTimer)
+        {
+            return;
+        }
+        this.currentShootTime = 0;
+        const [x,y] = [this.sprite.x, this.sprite.y];
+        const bullet = this.physics.add.image(x,y, "bullet");
+        bullet.body.setAllowGravity(false);
+        if (this.sprite.direction == "up")
+        {
+            bullet.body.setAccelerationY(-1500);
+        }
+        if (this.sprite.direction == "down")
+        {
+            bullet.body.setAccelerationY(1500);
+        }
+        if (this.sprite.direction == "left")
+        {
+            bullet.body.setAccelerationX(-1500);
+        }
+        if (this.sprite.direction == "right")
+        {
+            bullet.body.setAccelerationX(1500);
+        }
+        bullet.lifeTimer = 0;
+        this.bullets.push(bullet);
+    }
+
+    killBullets(dt)
+    {
+        this.bullets.forEach((bullet) => 
+        {
+            bullet.lifeTimer = dt + bullet.lifeTimer;
+            if (bullet.lifeTimer > this.bulletKillTimer)
+            {
+                bullet.destroy();
+            }
+            bullet = null;
+        });
+    }
+
     updateGameObjects(dt)
     {
+        this.killBullets(dt);
         this.updateCells(dt);
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
             this.sprite.setRotation(Math.PI * (15/10));
+            this.sprite.direction = "left";
         }
         else if (this.cursors.right.isDown)
         {
             this.updateSpritePos(this.sprite.x + 1, this.sprite.y);
             this.sprite.setRotation(Math.PI * (5/10));
+            this.sprite.direction = "right";
         }
         if (this.cursors.up.isDown)
         {
             this.updateSpritePos(this.sprite.x, this.sprite.y - 1);
             this.sprite.setRotation(Math.PI * (20/10));
+            this.sprite.direction = "up";
         }       
         else if (this.cursors.down.isDown)
         {
             this.updateSpritePos(this.sprite.x, this.sprite.y + 1);
             this.sprite.setRotation(Math.PI * (10/10));
+            this.sprite.direction = "down";
         }
 
         if (this.xKey.isDown)
         {
-            console.log("hello there");
+            this.shootBullet(dt);
         }
     }
 
