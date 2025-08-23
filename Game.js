@@ -1,6 +1,7 @@
 import {Scene, Game, AUTO, Physics, Input} from "phaser";
 
 const WINSIZE = [900,675];
+const SHOOTTIME = 350;
 
 function resetWithinBounds(gameObject)
 {
@@ -55,7 +56,9 @@ class Virus extends Scene
         this.cells = [];
         this.bullets = [];
         this.powerups = [];
-        this.shootTimer = 350;
+        this.powerUpTimer = 15000;
+        this.currentPowerUpTime = 0;
+        this.shootTimer = SHOOTTIME;
         this.currentShootTime = 0;
         this.bulletKillTimer = 700;
         this.spawnCellTimer = 1000;
@@ -71,6 +74,7 @@ class Virus extends Scene
         this.sprite.body.allowGravity = false;
         this.sprite.play({ key: 'idle', repeat: -1 });
         this.sprite.direction = "up";
+        this.sprite.power = null;
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
         this.createCell();
     }
@@ -227,21 +231,36 @@ class Virus extends Scene
         this.bullets.push(bullet);
     }
 
-    doPower()
+    doPower(powerup)
     {
-        console.log("TBD");
+        powerup.destroy();
+        const powers = ["attack-speed","balloon","clear-all"];
+        const selectedPower = powers[Math.floor(Math.random() * powers.length)];
+        if (selectedPower == "attack-speed")
+        {
+            console.log("attack speed power-up activated");
+            this.sprite.power = selectedPower;
+            this.shootTimer = SHOOTTIME/10;
+        }
+        if (selectedPower == "clear-all")
+        {
+            //should add a tint here for cool effect
+            console.log("Wiping everything out");
+            this.cells.forEach((cell) => {cell.destroy();});
+            this.cells = [];
+        }
     }
 
     dropPowerUp(x,y)
     {
-        const chance = 15; // 1 in 15 to drop a powerup
+        const chance = 2; // 1 in 15 to drop a powerup
         const rng = (Math.floor(Math.random() * chance));
         const addPowerUp = rng == 1;
         if (addPowerUp)
         {
             const powerUp = this.physics.add.image(x,y, "powerup");
             powerUp.body.setAllowGravity(false);
-            this.physics.add.overlap(powerUp, this.sprite, () => {this.doPower();});
+            this.physics.add.overlap(powerUp, this.sprite, () => {this.doPower(powerUp);});
             this.powerups.push(powerUp);
         }
     }
@@ -275,8 +294,25 @@ class Virus extends Scene
         this.bullets = newArray;
     }
 
+
+
+    updatePowerTimer(dt)
+    {
+        if (this.sprite.power != null)
+        {
+            this.currentPowerUpTime += dt;
+            if (this.currentPowerUpTime > this.powerUpTimer)
+            {
+                this.sprite.power = null;
+                this.shootTimer = SHOOTTIME;
+                this.currentPowerUpTime = 0;
+            }
+        }
+    }
+
     updateGameObjects(dt)
     {
+        this.updatePowerTimer(dt);
         this.killBullets(dt);
         this.updateCells(dt);
         this.killCells();
