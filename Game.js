@@ -2,6 +2,27 @@ import {Scene, Game, AUTO, Physics, Input} from "phaser";
 
 const WINSIZE = [900,675];
 
+function resetWithinBounds(gameObject)
+{
+    const i = 40;
+    if (gameObject.x > WINSIZE[0] + i)
+    {
+        gameObject.x = -i;
+    }
+    if (gameObject.x < -i)
+    {
+        gameObject.x = WINSIZE[0] + i;
+    }
+    if (gameObject.y > WINSIZE[1] + i)
+    {
+        gameObject.y = -i;
+    }
+    if (gameObject.y < -i)
+    {
+        gameObject.y = WINSIZE[1] + i;
+    }
+}
+
 class Virus extends Scene
 {
     preload ()
@@ -13,46 +34,95 @@ class Virus extends Scene
 
     create ()
     {
+        this.cells = [];
+        this.cellMoveTimer = 100;
+        this.currentCellMoveTime = 0;
         this.cursors = this.input.keyboard.createCursorKeys();
         this.add.image(WINSIZE[0]/2, WINSIZE[1]/2,"background");
         this.anims.createFromAseprite("virus");
         this.anims.createFromAseprite("cell");
         this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
-        this.cell = this.physics.add.sprite(WINSIZE[0]/3, WINSIZE[1]/2, "cell");
         this.sprite.body.allowGravity = false;
-        this.sprite.isSwimming = false;
-        this.cell.body.allowGravity = false;
-        //below is a bug in Phaser. Each animation tag has to be unique otherwise Phaser will mix them up
-        this.cell.play({ key: 'swim2', repeat: -1 }); 
         this.sprite.play({ key: 'idle', repeat: -1 });
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
+        this.createCell();
+    }
+
+    createCell()
+    {
+        const cell = this.physics.add.sprite(WINSIZE[0]/3, WINSIZE[1]/2, "cell");
+        cell.body.allowGravity = false;
+        cell.play({ key: 'swim2', repeat: -1 });  //animation tag has to be unique due to a Phaser bug
+        this.cells.push(cell);
+    }
+
+    updateCellPosition(cell)
+    {
+        const [dtX,dtY] = [cell.x - this.sprite.x, cell.y - this.sprite.y];
+        if (dtX < 0 && dtY < 0)
+        {
+            cell.setPosition(cell.x + 1, cell.y + 1);
+        }
+        else if (dtX > 0 && dtY < 0)
+        {
+            cell.setPosition(cell.x - 1, cell.y + 1);
+        }
+        else if (dtX < 0 && dtY > 0)
+        {
+            cell.setPosition(cell.x + 1, cell.y - 1);
+        }          
+        else if (dtX > 0 && dtY > 0)
+        {
+            cell.setPosition(cell.x - 1, cell.y - 1);
+        }        
+        else if (dtX == 0)
+        {
+            if (dtY > 0)
+            {
+                cell.setPosition(cell.x, cell.y - 1);
+            }
+            else if (dtY < 0)
+            {
+                cell.setPosition(cell.x, cell.y + 1);
+            }
+        }
+        else if (dtY == 0)
+        {
+            if (dtX > 0)
+            {
+                cell.setPosition(cell.x - 1, cell.y);
+            }
+            else if (dtX < 0)
+            {
+                cell.setPosition(cell.x + 1, cell.y);
+            }
+        }
+        resetWithinBounds(cell);
+    }
+
+    updateAllCellPositions()
+    {
+        this.cells.forEach((cell) =>
+        {
+            this.updateCellPosition(cell);
+        });
     }
 
     updateSpritePos(x,y)
     {
         this.sprite.play("swim", true);
-        const i = 40;
         this.sprite.setPosition(x,y);
-        if (this.sprite.x > WINSIZE[0] + i)
-        {
-            this.sprite.x = -i;
-        }
-        if (this.sprite.x < -i)
-        {
-            this.sprite.x = WINSIZE[0] + i;
-        }
-        if (this.sprite.y > WINSIZE[1] + i)
-        {
-            this.sprite.y = -i;
-        }
-        if (this.sprite.y < -i)
-        {
-            this.sprite.y = WINSIZE[1] + i;
-        }
+        resetWithinBounds(this.sprite);
     }
 
     update (t,dt)
     {
+        this.currentCellMoveTime = dt + this.currentCellMoveTime;
+        if (this.currentCellMoveTime >  this.cellMoveTimer)
+        {
+            this.currentCellMoveTime = 0;
+            this.updateAllCellPositions();
+        }
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
