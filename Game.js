@@ -23,6 +23,21 @@ function resetWithinBounds(gameObject)
     }
 }
 
+function getRandomCellPosition()
+{
+    const positions =
+        [
+            [-40,-40],
+            [-40,WINSIZE[1] + 40],
+            [WINSIZE[0]/2,-40],
+            [-40,WINSIZE[1]/2],
+            [WINSIZE[0]/3, -40],
+            [WINSIZE[0] + 10, WINSIZE[1] + 10],
+            [WINSIZE[0] + 10, WINSIZE[1]/3]
+        ];
+    return positions[Math.floor(Math.random() * positions.length)];
+}
+
 class Virus extends Scene
 {
     preload ()
@@ -34,7 +49,10 @@ class Virus extends Scene
 
     create ()
     {
+        this.gameState = "running";
         this.cells = [];
+        this.spawnCellTimer = 1000;
+        this.currentCellSpawnTime = 0;
         this.cellMoveTimer = 100;
         this.currentCellMoveTime = 0;
         this.cursors = this.input.keyboard.createCursorKeys();
@@ -42,7 +60,7 @@ class Virus extends Scene
         this.anims.createFromAseprite("virus");
         this.anims.createFromAseprite("cell");
         this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
-        this.sprite.body.setSize(70, 100, 0.5);
+        this.sprite.body.setSize(20, 50);
         this.sprite.body.allowGravity = false;
         this.sprite.play({ key: 'idle', repeat: -1 });
         this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
@@ -51,11 +69,12 @@ class Virus extends Scene
 
     createCell()
     {
-        const cell = this.physics.add.sprite(WINSIZE[0]/3, WINSIZE[1]/2, "cell");
+        const [x,y] = getRandomCellPosition();
+        const cell = this.physics.add.sprite(x, y, "cell");
         cell.body.allowGravity = false;
-        cell.body.setSize(80, 80, 0.5);
+        cell.body.setSize(50, 50);
        // this.physics.add.collider()
-        this.physics.add.collider(this.sprite, cell, () => {console.log("Collision!")});
+        this.physics.add.collider(this.sprite, cell, () => {this.gameState = "gameover"});
         cell.play({ key: 'swim2', repeat: -1 });  //animation tag has to be unique due to a Phaser bug
         this.cells.push(cell);
     }
@@ -119,14 +138,40 @@ class Virus extends Scene
         resetWithinBounds(this.sprite);
     }
 
-    update (t,dt)
+    destroyAllGameObjects()
     {
+        if (this.cells != null && this.sprite != null)
+        {
+            this.cells.forEach((cell) =>
+            {
+                cell.destroy();
+            });
+            this.sprite.destroy();
+            this.sprite = null;
+            this.cells = null;
+        }
+    }
+
+
+    updateCells(dt)
+    {        
+        this.currentCellSpawnTime = dt + this.currentCellSpawnTime;
+        if (this.currentCellSpawnTime > this.spawnCellTimer)
+        {
+            this.currentCellSpawnTime = 0;
+            this.createCell();
+        }
         this.currentCellMoveTime = dt + this.currentCellMoveTime;
         if (this.currentCellMoveTime >  this.cellMoveTimer)
         {
             this.currentCellMoveTime = 0;
             this.updateAllCellPositions();
         }
+    }
+
+    updateGameObjects(dt)
+    {
+        this.updateCells(dt);
         if (this.cursors.left.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
@@ -151,6 +196,18 @@ class Virus extends Scene
         if (this.xKey.isDown)
         {
             console.log("hello there");
+        }
+    }
+
+    update (t,dt)
+    {
+        if (this.gameState == "gameover")
+        {
+            this.destroyAllGameObjects();
+        }
+        else
+        {
+            this.updateGameObjects(dt);
         }
     }
 }
