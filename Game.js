@@ -51,17 +51,34 @@ class Virus extends Scene
         this.load.image("background", "virus-background.png");
         this.load.aseprite('virus', 'virus.png', 'virus.json');
         this.load.aseprite('cell', 'cell.png', 'cell.json');
+        this.load.audio("hit", "hit.mp3");
+        this.load.audio("powerup", "powerup.mp3");
         this.load.audio("laser", "laser.mp3");
+        this.load.audio("death", "death.mp3");
+        this.load.audio("explosion", "explosion.mp3");
+        const path = "./pixelfont/fonts/";
+        this.load.bitmapFont("pixelfont", path + "minogram_6x10.png", path + "minogram_6x10.xml");
     }
 
-    create ()
+    createPlayerVirus()
     {
-        this.gameState = "running";
+        this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
+        this.sprite.body.setSize(20, 50);
+        this.sprite.body.allowGravity = false;
+        this.sprite.play({ key: 'idle', repeat: -1 });
+        this.sprite.direction = "up";
+        this.sprite.power = null;
+    }
+
+    resetTimers()
+    {
         this.kills = 0;
         this.cells = [];
         this.bullets = [];
         this.powerups = [];
         this.hpDifficulty = 2;
+        this.resetGameTimer = 5000;
+        this.currentResetTime = 0;
         this.difficultyTimer = 10000;
         this.currentDifficultyTime = 0;
         this.powerUpTimer = 15000;
@@ -73,18 +90,31 @@ class Virus extends Scene
         this.currentCellSpawnTime = 0;
         this.cellMoveTimer = 100;
         this.currentCellMoveTime = 0;
-        this.cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    create ()
+    {
         this.add.image(WINSIZE[0]/2, WINSIZE[1]/2,"background");
         this.anims.createFromAseprite("virus");
         this.anims.createFromAseprite("cell");
-        this.sprite = this.physics.add.sprite(WINSIZE[0]/2, WINSIZE[1]/2, "virus");
-        this.sprite.body.setSize(20, 50);
-        this.sprite.body.allowGravity = false;
-        this.sprite.play({ key: 'idle', repeat: -1 });
-        this.sprite.direction = "up";
-        this.sprite.power = null;
-        this.xKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.X);
-        this.createCell();
+        this.gameState = "running";
+        this.resetTimers();
+        this.wKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.W);
+        this.aKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.A);
+        this.sKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.S);
+        this.dKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.D);
+        this.spaceKey = this.input.keyboard.addKey(Input.Keyboard.KeyCodes.SPACE);
+        this.createPlayerVirus();
+        this.text1 = this.add.bitmapText(WINSIZE[0] - (WINSIZE[0] * 0.4), 10, 'pixelfont', "Score: 0", 40);
+        this.text2 = this.add.bitmapText(WINSIZE[0] - (WINSIZE[0] * 0.8), 10, 'pixelfont', "[SPACE] WASD", 20);
+    }
+
+    killPlayer()
+    {
+        this.sprite.destroy();
+        this.sprite = null;
+        this.sound.play("death");
+        this.gameState = "gameover"
     }
 
     createCell()
@@ -95,7 +125,7 @@ class Virus extends Scene
         cell.body.allowGravity = false;
         cell.body.setSize(50, 50);
        // this.physics.add.collider()
-        this.physics.add.collider(this.sprite, cell, () => {this.gameState = "gameover"});
+        this.physics.add.collider(this.sprite, cell, () => {this.killPlayer();});
         cell.play({ key: 'swim2', repeat: -1 });  //animation tag has to be unique due to a Phaser bug
         this.cells.push(cell);
     }
@@ -179,20 +209,21 @@ class Virus extends Scene
 
     destroyAllGameObjects()
     {
-        if (this.cells != null && this.sprite != null)
+        if (this.cells != null)
         {
             this.cells.forEach((cell) =>
             {
                 cell.destroy();
             });
+            this.cells = [];
+        }
+        if (this.bullets != null)
+        {
             this.bullets.forEach((b) =>
             {
                 b.destroy();
             });
-            this.sprite.destroy();
-            this.sprite = null;
-            this.cells = null;
-            this.bullets = null;
+            this.bullets = [];
         }
     }
 
@@ -215,6 +246,7 @@ class Virus extends Scene
 
     hitCell(cell,bullet)
     {
+        this.sound.play("hit");
         //console.log("Cell hp", cell.hp);
         cell.hp -= 1;
         cell.setTint("0xe1e0e6");
@@ -229,6 +261,7 @@ class Virus extends Scene
         {
             return;
         }
+        this.sound.play("laser");
         this.currentShootTime = 0;
         const [x,y] = [this.sprite.x, this.sprite.y];
         const bullet = this.physics.add.image(x,y, "bullet");
@@ -254,12 +287,12 @@ class Virus extends Scene
             bullet.body.setAccelerationX(1500);
         }
         bullet.lifeTimer = 0;
-        this.sound.play("laser");
         this.bullets.push(bullet);
     }
 
     doPower(powerup)
     {
+        this.sound.play("powerup");
         console.log("timer", this.spawnCellTimer);
         powerup.destroy();
         const powers = ["attack-speed","balloon","clear-all"];
@@ -272,6 +305,7 @@ class Virus extends Scene
         }
         if (selectedPower == "clear-all")
         {
+            this.sound.play("explosion");
             //should add a tint here for cool effect
             console.log("Wiping everything out");
             this.sprite.power = selectedPower;
@@ -356,40 +390,62 @@ class Virus extends Scene
 
     updateGameObjects(dt)
     {
+        this.text1.text = "Score: " + this.kills.toString();
         this.updatePowerTimer(dt);
         this.killBullets(dt);
         this.updateCells(dt);
         this.killCells();
         this.updateDifficulty(dt);
-        if (this.cursors.left.isDown)
+        if (this.aKey.isDown)
         {
             this.updateSpritePos(this.sprite.x - 1, this.sprite.y);
             this.sprite.setRotation(Math.PI * (15/10));
             this.sprite.direction = "left";
         }
-        else if (this.cursors.right.isDown)
+        else if (this.dKey.isDown)
         {
             this.updateSpritePos(this.sprite.x + 1, this.sprite.y);
             this.sprite.setRotation(Math.PI * (5/10));
             this.sprite.direction = "right";
         }
-        if (this.cursors.up.isDown)
+        if (this.wKey.isDown)
         {
             this.updateSpritePos(this.sprite.x, this.sprite.y - 1);
             this.sprite.setRotation(Math.PI * (20/10));
             this.sprite.direction = "up";
         }       
-        else if (this.cursors.down.isDown)
+        else if (this.sKey.isDown)
         {
             this.updateSpritePos(this.sprite.x, this.sprite.y + 1);
             this.sprite.setRotation(Math.PI * (10/10));
             this.sprite.direction = "down";
         }
 
-        if (this.xKey.isDown)
+        if (this.spaceKey.isDown)
         {
             this.shootBullet(dt);
         }
+    }
+
+
+
+    autoResetGame(dt)
+    {
+        if (this.deathText == null)
+        {
+            this.deathText = this.add.bitmapText(WINSIZE[0]/3, WINSIZE[1]/2, 'pixelfont', "DEATH", 100);
+        }
+        this.currentResetTime += dt;
+        if (this.currentResetTime > this.resetGameTimer)
+        {
+            this.currentResetTime = 0;
+            this.gameState = "running";
+            this.createPlayerVirus();
+            this.deathText.destroy();
+            this.deathText = null;
+            this.resetTimers();
+        }
+        
     }
 
     update (t,dt)
@@ -397,13 +453,15 @@ class Virus extends Scene
         if (this.gameState == "gameover")
         {
             this.destroyAllGameObjects();
+            this.autoResetGame(dt);
         }
-        else
+        else if (this.gameState == "running")
         {
             this.updateGameObjects(dt);
         }
     }
 }
+
 
 const config = {
     type: AUTO,
