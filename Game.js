@@ -209,22 +209,23 @@ class Virus extends Scene
 
     destroyAllGameObjects()
     {
-        if (this.cells != null)
+        this.cells.forEach((cell) =>
         {
-            this.cells.forEach((cell) =>
-            {
-                cell.destroy();
-            });
-            this.cells = [];
-        }
-        if (this.bullets != null)
+            cell.destroy();
+        });
+        this.cells = [];
+        this.bullets.forEach((b) =>
         {
-            this.bullets.forEach((b) =>
-            {
-                b.destroy();
-            });
-            this.bullets = [];
-        }
+            b.destroy();
+        });
+        this.bullets = [];
+
+        this.powerups.forEach((p) =>
+        {
+            p.destroy();
+        });
+        this.powerups = [];
+        
     }
 
 
